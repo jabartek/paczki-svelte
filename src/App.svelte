@@ -1,5 +1,5 @@
 <script>
-	import Emcc from './Emcc.svelte';
+	import PaczkiView from "./PaczkiView.svelte";
 	export let name;
 </script>
 
@@ -10,9 +10,7 @@
 		how to build Svelte apps.
 	</p>
 </main>
-
-<Emcc></Emcc>
-
+<PaczkiView />
 
 <style>
 	main {
