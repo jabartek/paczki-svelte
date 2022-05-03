@@ -1,14 +1,10 @@
 <script>
 	import PaczkiView from "./PaczkiView.svelte";
-	export let name;
+	export let title;
 </script>
 
 <main>
-	<h1>Hello {name}!</h1>
-	<p>
-		Visit the <a href="https://svelte.dev/tutorial">Svelte tutorial</a> to learn
-		how to build Svelte apps.
-	</p>
+	<h1>{title}</h1>
 </main>
 <PaczkiView />
 

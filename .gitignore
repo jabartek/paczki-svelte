@@ -1,4 +1,6 @@
 /node_modules/
 /public/build/
+/src/external/
+*.wasm
 
 .DS_Store
