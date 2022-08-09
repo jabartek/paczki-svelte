@@ -102,14 +102,14 @@
         );
     });
 
-    function offerFileAsDownload(filename) {
+    function offerDownload(filename) {
         let content = paczki_plusplus.FS.readFile(filename);
         console.log(
             `Offering download of "${filename}", with ${content.length} bytes...`
         );
         saveAs(new Blob([content], { type: "application/json" }), filename);
     }
-    window.offerFileAsDownload = offerFileAsDownload;
+    window.offerDownload = offerDownload;
 
     $: items_per_box = $box_type_list
         ? Object.fromEntries(
