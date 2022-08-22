@@ -9,6 +9,12 @@
     import Switch from "@smui/switch";
     import Slider from "@smui/slider";
     import FormField from "@smui/form-field";
+    import Dialog, {
+        Title,
+        Content as DialogContent,
+        Actions,
+    } from "@smui/dialog";
+
     import { saveAs } from "file-saver";
 
     import DataTable, { Head, Body, Row, Cell } from "@smui/data-table";
@@ -32,6 +38,21 @@
     const box_clipboard = writable([{}]);
     const color_by_box_pos = writable(true);
 
+    const stores = {
+        active_packet: active_packet,
+        active_box_type: active_box_type,
+        active_sku: active_sku,
+        box_type_list: box_type_list,
+        box_pos_list: box_pos_list,
+        pallet_id_list: pallet_id_list,
+        sku_list: sku_list,
+        selected_pallet: selected_pallet,
+        box_pos_order: box_pos_order,
+        box_pos_order_it: box_pos_order_it,
+        box_clipboard: box_clipboard,
+        color_by_box_pos: color_by_box_pos,
+    };
+
     let pallet_only_box_types = true;
     $: box_type_val =
         $box_type_list && $active_box_type
@@ -52,65 +73,6 @@
             ? box_type_list_v
             : [];
 
-    const setupStore = (module_proper, store_name, store_obj) => {
-        store_obj.subscribe((value) => {
-            module_proper.callUpdate(store_name);
-        });
-        module_proper.addStore(store_name, store_obj);
-        window[store_name] = store_obj;
-    };
-
-    let value = 0;
-
-    onMount(() => {
-        packet_viewer_proto({ canvas: packet_viewer_canvas }).then((self) => {
-            packet_viewer = self;
-            packet_viewer.setGet(get);
-            setupStore(packet_viewer, "active_packet", active_packet);
-            setupStore(packet_viewer, "active_box_type", active_box_type);
-            setupStore(packet_viewer, "active_sku", active_sku);
-            setupStore(packet_viewer, "sku_list", sku_list);
-            setupStore(packet_viewer, "box_type_list", box_type_list);
-        });
-        paczki_plusplus_proto({ canvas: paczki_plusplus_canvas }).then(
-            (self) => {
-                paczki_plusplus = self;
-                paczki_plusplus.setGet(get);
-                window.paczki_plusplus = paczki_plusplus;
-                window.getSvelte = get;
-                setupStore(paczki_plusplus, "active_box_type", active_box_type);
-                setupStore(paczki_plusplus, "active_packet", active_packet);
-                setupStore(paczki_plusplus, "active_sku", active_sku);
-                setupStore(paczki_plusplus, "box_type_list", box_type_list);
-                setupStore(paczki_plusplus, "box_pos_list", box_pos_list);
-                setupStore(paczki_plusplus, "pallet_id_list", pallet_id_list);
-                setupStore(paczki_plusplus, "sku_list", sku_list);
-                setupStore(paczki_plusplus, "selected_pallet", selected_pallet);
-                setupStore(paczki_plusplus, "box_pos_order", box_pos_order);
-                setupStore(paczki_plusplus, "box_clipboard", box_clipboard);
-                setupStore(
-                    paczki_plusplus,
-                    "color_by_box_pos",
-                    color_by_box_pos
-                );
-                setupStore(
-                    paczki_plusplus,
-                    "box_pos_order_it",
-                    box_pos_order_it
-                );
-            }
-        );
-    });
-
-    function offerDownload(filename) {
-        let content = paczki_plusplus.FS.readFile(filename);
-        console.log(
-            `Offering download of "${filename}", with ${content.length} bytes...`
-        );
-        saveAs(new Blob([content], { type: "application/json" }), filename);
-    }
-    window.offerDownload = offerDownload;
-
     $: items_per_box = $box_type_list
         ? Object.fromEntries(
               box_type_list_v.map((box_type) => {
@@ -123,11 +85,158 @@
                           ? map[item.Item1] + 1
                           : 1;
                   }
-                  return [box_type.$id, map];
+                  return [box_type["$id"], map];
               })
           )
         : {};
+
+    const setupStore = (module_proper, store_name) => {
+        let store_obj = stores[store_name];
+        store_obj.subscribe((value) => {
+            module_proper.callUpdate(store_name);
+        });
+        module_proper.addStore(store_name, store_obj);
+        window[store_name] = store_obj;
+    };
+
+    let value = 0;
+
+    onMount(() => {
+        const packet_viewer_stores = [
+            "active_packet",
+            "active_box_type",
+            "active_sku",
+            "sku_list",
+            "box_type_list",
+        ];
+        packet_viewer_proto({
+            canvas: packet_viewer_canvas,
+            onExit: () => {
+                showAlert("Aplikacja niespodziewanie zamknięta :(", true);
+                window.location.reload();
+            },
+        }).then((self) => {
+            packet_viewer = self;
+            window.packet_viewer = packet_viewer;
+            packet_viewer.setGet(get);
+            packet_viewer_stores.forEach((name) => {
+                setupStore(packet_viewer, name);
+            });
+        });
+
+        const paczki_plusplus_stores = [
+            "active_box_type",
+            "active_packet",
+            "active_sku",
+            "sku_list",
+            "box_type_list",
+            "box_pos_list",
+            "pallet_id_list",
+            "selected_pallet",
+            "box_pos_order",
+            "box_clipboard",
+            "color_by_box_pos",
+            "box_pos_order_it",
+        ];
+        paczki_plusplus_proto({
+            canvas: paczki_plusplus_canvas,
+            onExit: () => {
+                showAlert("Aplikacja niespodziewanie zamknięta :(", true);
+                window.location.reload();
+            },
+        }).then((self) => {
+            paczki_plusplus = self;
+            window.paczki_plusplus = paczki_plusplus;
+            paczki_plusplus.setGet(get);
+            paczki_plusplus_stores.forEach((name) => {
+                setupStore(paczki_plusplus, name);
+            });
+        });
+    });
+
+    function offerDownload(filename) {
+        let content = paczki_plusplus.FS.readFile(filename);
+        console.log(
+            `Offering download of "${filename}", with ${content.length} bytes...`
+        );
+        saveAs(new Blob([content], { type: "application/json" }), filename);
+    }
+    window.offerDownload = offerDownload;
+
+    function openFile() {
+        var passToCpp = function (e) {
+            const file_reader = new FileReader();
+            file_reader.onload = (event) => {
+                const filename = "/" + Number(new Date()) + ".json";
+                const decoder = new TextDecoder("utf-8")
+                const content = decoder.decode(event.target.result);
+                paczki_plusplus.FS.writeFile(filename, content);
+                paczki_plusplus.FS.chmod(filename, "0777");
+                console.log(filename);
+                paczki_plusplus.call("loadFile", filename);
+            };
+            file_reader.readAsArrayBuffer(e.target.files[0]);
+        };
+        let file_selector = document.createElement("input");
+        file_selector.setAttribute("type", "file");
+        file_selector.addEventListener("change", (e) => {
+            passToCpp(e);
+        });
+        file_selector.setAttribute("accept", ".json");
+        file_selector.click();
+    }
+
+    let open = false;
+    let alertShowContent = false;
+    let alertText = "";
+    let alertNonRecoverable = false;
+    function showAlert(text, nonRecoverable = false) {
+        if (
+            (open && !nonRecoverable) ||
+            (nonRecoverable && !alertNonRecoverable)
+        ) {
+            return;
+        }
+        alertNonRecoverable = nonRecoverable;
+        alertText = text;
+        alertShowContent = false;
+        open = true;
+    }
+    window.showAlert = showAlert;
 </script>
+
+<Dialog
+    bind:open
+    aria-labelledby="simple-title"
+    aria-describedby="simple-content"
+    on:SMUIDialog:closed={alertNonRecoverable
+        ? () => {
+              window.location.reload(true);
+          }
+        : () => {}}
+>
+    <!-- Title cannot contain leading whitespace due to mdc-typography-baseline-top() -->
+    <Title id="simple-title"
+        >{alertNonRecoverable
+            ? "Wystąpił nienaprawialny błąd, aplikacja zostanie przeładowana"
+            : "Wystąpił niespodziewany błąd"}</Title
+    >
+    <DialogContent
+        >{#if !alertShowContent}<Button
+                on:click={() => {
+                    alertShowContent = true;
+                }}>Wyświetl szczegóły</Button
+            >{/if}</DialogContent
+    >
+    <DialogContent id="simple-content"
+        >{#if alertShowContent}{alertText}{/if}</DialogContent
+    >
+    <Actions>
+        <Button>
+            <Label>Zamknij</Label>
+        </Button>
+    </Actions>
+</Dialog>
 
 <LayoutGrid>
     <CellLG spanDevices={{ desktop: 6, tablet: 8, phone: 4 }}>
@@ -138,8 +247,13 @@
                 oncontextmenu="return false"
                 id="canvas"
             />
-            {#if $active_packet}
-                <p>
+            <p>
+                {#if !$pallet_id_list}
+                    <Button on:click={() => openFile()} variant="raised">
+                        <Label>Otwórz plik</Label>
+                    </Button>
+                {/if}
+                {#if $active_packet}
                     <Button
                         on:click={() =>
                             paczki_plusplus.call(
@@ -157,8 +271,17 @@
                     >
                         <Label>Zdejmij do schowka.</Label>
                     </Button>
-                </p>
-            {/if}
+                {/if}
+                {#if $pallet_id_list}
+                    <Button
+                        on:click={() =>
+                            paczki_plusplus.call("offerDownload", null)}
+                        variant="raised"
+                    >
+                        <Label>Zapisz plik</Label>
+                    </Button>
+                {/if}
+            </p>
 
             <FormField>
                 <Switch
@@ -170,10 +293,8 @@
                 >
             </FormField>
             <FormField>
-                <Switch bind:checked={$color_by_box_pos}
-                />
-                <span slot="label">Kolor wg paczki</span
-                >
+                <Switch bind:checked={$color_by_box_pos} />
+                <span slot="label">Kolor wg paczki</span>
             </FormField>
             {#if $box_pos_order_it >= 0 && $box_pos_order[0].length - 1 > 0}
                 <Slider
@@ -255,7 +376,7 @@
                                     href="javascript:void(0);"
                                     on:click={() =>
                                         ($active_box_type = box.Item1[0].$id)}
-                                    >{box.Item1[0].Id}</a
+                                    >{box.Item1.Id}</a
                                 ></Cell
                             >
                             <Cell
